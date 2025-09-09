@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Line Rehearsal</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <meta name="theme-color" content="#0f172a" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <header>
+    <h1>🎭 Line Rehearsal</h1>
+    <p class="sub">Hold “My line” to punch your mic into the <strong>right</strong> channel.</p>
+  </header>
+
+  <main>
+    <section class="panel">
+      <div class="controls">
+        <button id="startStopBtn" class="primary">Start</button>
+        <button id="myLineBtn" class="hold" disabled title="Hold to route mic to right channel">My line (hold)</button>
+        <button id="playBtn" class="secondary" disabled>Play</button>
+        <button id="downloadBtn" class="ghost" disabled>Download (.webm)</button>
+      </div>
+
+      <div class="status">
+        <div><strong>State:</strong> <span id="state">idle</span></div>
+        <div><strong>Elapsed:</strong> <span id="elapsed">00:00</span></div>
+        <div><strong>Recorded:</strong> <span id="size">0.0 MB</span></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Playback mix</h2>
+      <p>Right channel level (your lines)</p>
+      <input id="rightLevel" type="range" min="0" max="100" value="100" />
+      <div class="labels"><span>Mute right</span><span>Full right</span></div>
+    </section>
+
+    <audio id="player" preload="metadata" controls class="hidden"></audio>
+  </main>
+
+  <footer>
+    <small>Install this as a PWA - works best over HTTPS. v1.0</small>
+  </footer>
+
+  <script type="module" src="./app.js"></script>
+  <script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(console.warn);
+    });
+  }
+  </script>
+</body>
+</html>
