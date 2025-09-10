@@ -21,12 +21,24 @@
         <button id="myLineBtn" class="hold" disabled title="Hold to route mic to right channel">My line (hold)</button>
         <button id="playBtn" class="secondary" disabled>Play</button>
         <button id="downloadBtn" class="ghost" disabled>Download (.webm)</button>
+        <button id="testBtn" class="ghost">Test Audio</button>
       </div>
 
       <div class="status">
         <div><strong>State:</strong> <span id="state">idle</span></div>
         <div><strong>Elapsed:</strong> <span id="elapsed">00:00</span></div>
         <div><strong>Recorded:</strong> <span id="size">0.0 MB</span></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Audio Source</h2>
+      <p>Load the play audio file to record other actors' lines</p>
+      <input id="audioFile" type="file" accept="audio/*" />
+      <div id="audioInfo" class="hidden">
+        <p><strong>Loaded:</strong> <span id="fileName"></span></p>
+        <button id="playAudioBtn" class="secondary">Play Audio</button>
+        <button id="stopAudioBtn" class="secondary">Stop Audio</button>
       </div>
     </section>
 
@@ -38,6 +50,7 @@
     </section>
 
     <audio id="player" preload="metadata" controls class="hidden"></audio>
+    <audio id="sourceAudio" preload="metadata" class="hidden"></audio>
   </main>
 
   <footer>
