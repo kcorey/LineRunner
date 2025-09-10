@@ -71,9 +71,35 @@ class LineRecorderApp {
     // Recording dialog
     this.closeRecordingBtn.addEventListener('click', () => this.closeRecordingDialog());
     this.startStopBtn.addEventListener('click', () => this.toggleRecording());
-    this.myLineBtn.addEventListener('mousedown', () => this.startMyLine());
-    this.myLineBtn.addEventListener('mouseup', () => this.stopMyLine());
-    this.myLineBtn.addEventListener('mouseleave', () => this.stopMyLine());
+    
+    // My line button - handle both mouse and touch events
+    this.myLineBtn.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      this.startMyLine();
+    });
+    this.myLineBtn.addEventListener('mouseup', (e) => {
+      e.preventDefault();
+      this.stopMyLine();
+    });
+    this.myLineBtn.addEventListener('mouseleave', (e) => {
+      e.preventDefault();
+      this.stopMyLine();
+    });
+    
+    // Touch events for mobile
+    this.myLineBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      this.startMyLine();
+    });
+    this.myLineBtn.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      this.stopMyLine();
+    });
+    this.myLineBtn.addEventListener('touchcancel', (e) => {
+      e.preventDefault();
+      this.stopMyLine();
+    });
+    
     this.micSelect.addEventListener('change', () => this.saveMicrophoneSelection());
     
     // Playback dialog
