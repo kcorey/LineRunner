@@ -714,7 +714,193 @@ class LineRecorderApp {
   }
 }
 
+// Service Worker Update Manager
+class ServiceWorkerManager {
+  constructor() {
+    this.registration = null;
+    this.updateAvailable = false;
+    this.init();
+  }
+
+  async init() {
+    if ('serviceWorker' in navigator) {
+      try {
+        this.registration = await navigator.serviceWorker.register('./sw.js');
+        console.log('Service Worker registered successfully');
+        
+        // Check for updates immediately
+        await this.checkForUpdates();
+        
+        // Listen for service worker updates
+        this.registration.addEventListener('updatefound', () => {
+          this.handleUpdateFound();
+        });
+        
+        // Listen for messages from service worker
+        navigator.serviceWorker.addEventListener('message', (event) => {
+          this.handleServiceWorkerMessage(event);
+        });
+        
+        // Check for updates every 30 seconds when app is active
+        setInterval(() => {
+          this.checkForUpdates();
+        }, 30000);
+        
+      } catch (error) {
+        console.error('Service Worker registration failed:', error);
+      }
+    }
+  }
+
+  async checkForUpdates() {
+    if (this.registration) {
+      try {
+        await this.registration.update();
+      } catch (error) {
+        console.error('Failed to check for updates:', error);
+      }
+    }
+  }
+
+  handleUpdateFound() {
+    console.log('New service worker version found');
+    this.updateAvailable = true;
+    this.showUpdateNotification();
+  }
+
+  handleServiceWorkerMessage(event) {
+    if (event.data && event.data.type === 'UPDATE_AVAILABLE') {
+      this.updateAvailable = true;
+      this.showUpdateNotification();
+    }
+  }
+
+  showUpdateNotification() {
+    // Create update notification
+    const notification = document.createElement('div');
+    notification.className = 'update-notification';
+    notification.innerHTML = `
+      <div class="update-content">
+        <div class="update-icon">🔄</div>
+        <div class="update-text">
+          <strong>Update Available!</strong>
+          <p>A new version of Line Rehearsal is ready.</p>
+        </div>
+        <div class="update-actions">
+          <button id="updateNow" class="primary">Update Now</button>
+          <button id="updateLater" class="secondary">Later</button>
+        </div>
+      </div>
+    `;
+    
+    // Add styles
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #1e293b;
+      color: white;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      z-index: 10000;
+      max-width: 320px;
+      animation: slideIn 0.3s ease-out;
+    `;
+    
+    // Add animation styles
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+      }
+      .update-content {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .update-icon {
+        font-size: 24px;
+        flex-shrink: 0;
+      }
+      .update-text {
+        flex: 1;
+      }
+      .update-text strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+      .update-text p {
+        margin: 0;
+        font-size: 14px;
+        opacity: 0.8;
+      }
+      .update-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+      .update-actions button {
+        padding: 6px 12px;
+        border: none;
+        border-radius: 6px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .update-actions .primary {
+        background: #3b82f6;
+        color: white;
+      }
+      .update-actions .primary:hover {
+        background: #2563eb;
+      }
+      .update-actions .secondary {
+        background: transparent;
+        color: #94a3b8;
+        border: 1px solid #374151;
+      }
+      .update-actions .secondary:hover {
+        background: #374151;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    document.body.appendChild(notification);
+    
+    // Add event listeners
+    document.getElementById('updateNow').addEventListener('click', () => {
+      this.applyUpdate();
+      notification.remove();
+    });
+    
+    document.getElementById('updateLater').addEventListener('click', () => {
+      notification.remove();
+    });
+    
+    // Auto-hide after 10 seconds
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.remove();
+      }
+    }, 10000);
+  }
+
+  async applyUpdate() {
+    if (this.registration && this.registration.waiting) {
+      // Tell the waiting service worker to skip waiting and become active
+      this.registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+      
+      // Reload the page to use the new service worker
+      window.location.reload();
+    }
+  }
+}
+
 // Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
   new LineRecorderApp();
+  new ServiceWorkerManager();
 });

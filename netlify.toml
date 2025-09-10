@@ -21,10 +21,20 @@
     Cache-Control = "public, max-age=31536000"
 
 [[headers]]
-  # Cache service worker
+  # Cache service worker - no cache to ensure updates
   for = "/sw.js"
   [headers.values]
-    Cache-Control = "public, max-age=0, must-revalidate"
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+    Expires = "0"
+
+[[headers]]
+  # Cache version file - no cache to ensure updates
+  for = "/version.js"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+    Expires = "0"
 
 [[headers]]
   # Cache main files

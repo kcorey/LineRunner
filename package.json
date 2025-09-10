@@ -1,0 +1,24 @@
+{
+  "name": "line-rehearsal",
+  "version": "2.0.1",
+  "description": "A Progressive Web App for actors to record and practice their lines",
+  "main": "index.html",
+  "scripts": {
+    "update-version": "node update-version.js",
+    "deploy": "npm run update-version && git add . && git commit -m 'Update version for deployment' && git push origin main"
+  },
+  "keywords": [
+    "pwa",
+    "audio",
+    "recording",
+    "theater",
+    "acting",
+    "lines"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kcorey/LineRunner.git"
+  }
+}
