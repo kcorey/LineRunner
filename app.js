@@ -123,19 +123,22 @@ class LineRecorderApp {
     this.rightLevel.addEventListener('touchstart', (e) => {
       console.log('Slider touchstart event fired');
       e.preventDefault();
+      // Force a test to see if we can detect touch
+      this.showVolumeChangeFeedback('TOUCH DETECTED');
     });
     
     this.rightLevel.addEventListener('touchmove', (e) => {
       console.log('Slider touchmove event fired');
       e.preventDefault();
-      // Get the touch position and calculate value
+      // Get the touch position and calculate value for VERTICAL slider
       const touch = e.touches[0];
       const rect = this.rightLevel.getBoundingClientRect();
-      const x = touch.clientX - rect.left;
-      const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
+      const y = touch.clientY - rect.top;
+      // For vertical slider: 0 at bottom, 100 at top (inverted)
+      const percentage = Math.max(0, Math.min(100, ((rect.height - y) / rect.height) * 100));
       const value = Math.round(percentage);
       
-      console.log('Touch position calculated value:', value);
+      console.log('Touch position calculated value:', value, 'y:', y, 'height:', rect.height);
       this.rightLevel.value = value;
       this.adjustRightLevel(value);
     });
@@ -152,6 +155,13 @@ class LineRecorderApp {
         console.log('Slider mousemove event fired, value:', e.target.value);
         this.adjustRightLevel(e.target.value);
       }
+    });
+    
+    // Add click event as fallback
+    this.rightLevel.addEventListener('click', (e) => {
+      console.log('Slider click event fired, value:', e.target.value);
+      this.showVolumeChangeFeedback('CLICK DETECTED: ' + e.target.value);
+      this.adjustRightLevel(e.target.value);
     });
     
     // Keyboard shortcuts
@@ -912,64 +922,72 @@ class LineRecorderApp {
     // Hide the original slider
     this.rightLevel.style.display = 'none';
     
-    // Create a custom slider container
+    // Create a custom VERTICAL slider container
     const customSlider = document.createElement('div');
     customSlider.className = 'custom-slider';
     customSlider.innerHTML = `
+      <div class="slider-labels-top">
+        <span>🔊</span>
+      </div>
       <div class="slider-track">
         <div class="slider-fill"></div>
         <div class="slider-thumb"></div>
       </div>
-      <div class="slider-labels">
-        <span>0%</span>
-        <span>100%</span>
+      <div class="slider-labels-bottom">
+        <span>🔇</span>
       </div>
     `;
     
     // Add styles
     customSlider.style.cssText = `
-      width: 100%;
-      height: 40px;
+      width: 40px;
+      height: 200px;
       position: relative;
       margin: 10px 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     `;
     
     const style = document.createElement('style');
     style.textContent = `
       .slider-track {
-        width: 100%;
-        height: 8px;
+        width: 8px;
+        height: 160px;
         background: #374151;
         border-radius: 4px;
         position: relative;
-        margin: 16px 0;
+        margin: 10px 0;
       }
       .slider-fill {
-        height: 100%;
+        width: 100%;
         background: #3b82f6;
         border-radius: 4px;
-        width: ${this.rightLevel.value}%;
-        transition: width 0.1s ease;
+        height: ${this.rightLevel.value}%;
+        transition: height 0.1s ease;
+        position: absolute;
+        bottom: 0;
       }
       .slider-thumb {
         position: absolute;
-        top: -8px;
-        left: ${this.rightLevel.value}%;
+        left: -8px;
+        bottom: ${this.rightLevel.value}%;
         width: 24px;
         height: 24px;
         background: #3b82f6;
         border: 2px solid #1e40af;
         border-radius: 50%;
         cursor: pointer;
-        transform: translateX(-50%);
+        transform: translateY(50%);
         box-shadow: 0 2px 4px rgba(0,0,0,0.2);
       }
-      .slider-labels {
-        display: flex;
-        justify-content: space-between;
-        font-size: 12px;
+      .slider-labels-top, .slider-labels-bottom {
+        font-size: 16px;
         color: #9ca3af;
-        margin-top: 4px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 20px;
       }
     `;
     document.head.appendChild(style);
@@ -1017,22 +1035,23 @@ class LineRecorderApp {
     const track = customSlider.querySelector('.slider-track');
     const rect = track.getBoundingClientRect();
     
-    let x;
+    let y;
     if (e.touches && e.touches[0]) {
-      x = e.touches[0].clientX - rect.left;
+      y = e.touches[0].clientY - rect.top;
     } else {
-      x = e.clientX - rect.left;
+      y = e.clientY - rect.top;
     }
     
-    const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
+    // For vertical slider: 0 at bottom, 100 at top (inverted)
+    const percentage = Math.max(0, Math.min(100, ((rect.height - y) / rect.height) * 100));
     const value = Math.round(percentage);
     
     // Update visual elements
     const fill = customSlider.querySelector('.slider-fill');
     const thumb = customSlider.querySelector('.slider-thumb');
     
-    fill.style.width = value + '%';
-    thumb.style.left = value + '%';
+    fill.style.height = value + '%';
+    thumb.style.bottom = value + '%';
     
     // Update the hidden slider value
     this.rightLevel.value = value;
@@ -1040,7 +1059,7 @@ class LineRecorderApp {
     // Trigger volume adjustment
     this.adjustRightLevel(value);
     
-    console.log('Custom slider updated to:', value);
+    console.log('Custom vertical slider updated to:', value, 'y:', y, 'height:', rect.height);
   }
 
   showVolumeChangeFeedback(value) {

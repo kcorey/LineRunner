@@ -186,20 +186,24 @@ button.hold:active {
 button:disabled { opacity: .5; cursor: not-allowed; }
 button:hover:not(:disabled) { transform: translateY(-1px); }
 
-/* Form Elements */
+/* Form Elements - Vertical Slider */
 #rightLevel { 
-  width: 100%; 
-  height: 40px; /* Make slider taller for easier touch interaction */
+  width: 8px; /* Thin width for vertical slider */
+  height: 200px; /* Tall height for vertical slider */
   -webkit-appearance: none;
   appearance: none;
   background: transparent;
   cursor: pointer;
+  writing-mode: bt-lr; /* IE */
+  -webkit-appearance: slider-vertical; /* WebKit */
+  writing-mode: vertical-lr; /* Standard */
+  transform: rotate(180deg); /* Flip to make 0 at bottom */
 }
 
-/* Custom slider styling for better mobile interaction */
+/* Custom vertical slider styling for better mobile interaction */
 #rightLevel::-webkit-slider-track {
   background: #374151;
-  height: 8px;
+  width: 8px;
   border-radius: 4px;
 }
 
@@ -222,7 +226,7 @@ button:hover:not(:disabled) { transform: translateY(-1px); }
 
 #rightLevel::-moz-range-track {
   background: #374151;
-  height: 8px;
+  width: 8px;
   border-radius: 4px;
   border: none;
 }
