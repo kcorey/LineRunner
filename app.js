@@ -730,22 +730,24 @@ class LineRecorderApp {
       source.connect(splitter);
       
       // Split channels: left channel (0) and right channel (1)
-      splitter.connect(this.playbackLeftGain, 0, 0);  // Left channel to left gain
-      splitter.connect(this.playbackRightGain, 1, 0); // Right channel to right gain
+      splitter.connect(this.playbackLeftGain, 0);  // Left channel (0) to left gain
+      splitter.connect(this.playbackRightGain, 1); // Right channel (1) to right gain
       
       // Merge back: left gain to left output, right gain to right output
-      this.playbackLeftGain.connect(merger, 0, 0);   // Left gain to left output
-      this.playbackRightGain.connect(merger, 0, 1);  // Right gain to right output
+      this.playbackLeftGain.connect(merger, 0, 0);   // Left gain to left output (0)
+      this.playbackRightGain.connect(merger, 0, 1);  // Right gain to right output (1)
       
       // Connect merger to destination
       merger.connect(this.playbackAudioContext.destination);
       
-      // Set initial gain values: left channel ALWAYS full volume, right channel adjustable
-      this.playbackLeftGain.gain.value = 1.0;  // Left channel ALWAYS at 100%
-      this.playbackRightGain.gain.value = this.rightLevel.value / 100; // Right channel adjustable
+      // Initialize both channels to 100% first
+      this.playbackLeftGain.gain.value = 1.0;  // Left channel at 100%
+      this.playbackRightGain.gain.value = 1.0; // Right channel at 100% initially
       
-      console.log('Web Audio API setup successful - Left: 100%, Right:', this.rightLevel.value + '%');
-      this.showVolumeChangeFeedback(`Stereo Active - L:100% R:${this.rightLevel.value}%`);
+      console.log('Web Audio API setup successful - Both channels initialized to 100%');
+      console.log('Left channel gain set to:', this.playbackLeftGain.gain.value);
+      console.log('Right channel gain set to:', this.playbackRightGain.gain.value);
+      this.showVolumeChangeFeedback(`Stereo Active - Both channels at 100%`);
       
     } catch (error) {
       console.error('Error setting up audio context:', error);
@@ -813,6 +815,47 @@ class LineRecorderApp {
     }
   }
 
+  initializeChannelsToFullVolume() {
+    // Set both channels to 100% volume initially
+    if (this.playbackLeftGain) {
+      this.playbackLeftGain.gain.value = 1.0;
+      console.log('Left channel initialized to 100%');
+    }
+    if (this.playbackRightGain) {
+      this.playbackRightGain.gain.value = 1.0;
+      console.log('Right channel initialized to 100%');
+    }
+    console.log('Both channels initialized to 100% volume');
+  }
+
+  testChannelSeparation() {
+    // Test function to verify channel separation
+    if (this.playbackLeftGain && this.playbackRightGain) {
+      console.log('=== CHANNEL SEPARATION TEST ===');
+      console.log('Left channel gain:', this.playbackLeftGain.gain.value);
+      console.log('Right channel gain:', this.playbackRightGain.gain.value);
+      
+      // Test setting right channel to 50%
+      this.playbackRightGain.gain.value = 0.5;
+      console.log('After setting right to 50%:');
+      console.log('Left channel gain:', this.playbackLeftGain.gain.value);
+      console.log('Right channel gain:', this.playbackRightGain.gain.value);
+      
+      // Test setting right channel to 0%
+      this.playbackRightGain.gain.value = 0.0;
+      console.log('After setting right to 0%:');
+      console.log('Left channel gain:', this.playbackLeftGain.gain.value);
+      console.log('Right channel gain:', this.playbackRightGain.gain.value);
+      
+      // Reset right channel to slider value
+      this.playbackRightGain.gain.value = this.rightLevel.value / 100;
+      console.log('After reset to slider value:');
+      console.log('Left channel gain:', this.playbackLeftGain.gain.value);
+      console.log('Right channel gain:', this.playbackRightGain.gain.value);
+      console.log('=== END TEST ===');
+    }
+  }
+
   adjustRightLevel(value) {
     console.log('adjustRightLevel called with value:', value);
     const rightGain = value / 100;
@@ -825,10 +868,17 @@ class LineRecorderApp {
     // Try Web Audio API first
     if (this.playbackRightGain) {
       console.log('Using Web Audio API, setting RIGHT channel gain to:', rightGain);
+      console.log('Left channel gain before adjustment:', this.playbackLeftGain ? this.playbackLeftGain.gain.value : 'N/A');
+      
       // ONLY adjust the right channel - left channel is NEVER touched
       this.playbackRightGain.gain.value = rightGain;
+      
       // Ensure left channel is still at 100% (should never change, but double-check)
       this.ensureLeftChannelAtFullVolume();
+      
+      console.log('Left channel gain after adjustment:', this.playbackLeftGain ? this.playbackLeftGain.gain.value : 'N/A');
+      console.log('Right channel gain after adjustment:', this.playbackRightGain.gain.value);
+      
       this.showVolumeChangeFeedback(`Stereo: L:100% R:${value}%`);
     } else {
       console.log('Web Audio API not available, using fallback');
@@ -1187,22 +1237,24 @@ class LineRecorderApp {
           await this.setupPlaybackAudioContext();
         }
         
-        // Ensure left channel is always at 100% before playing
-        this.ensureLeftChannelAtFullVolume();
+        // Initialize both channels to 100% first
+        this.initializeChannelsToFullVolume();
         
         // Try to play the audio
         await this.player.play();
         this.playBtn.textContent = '⏹️';
         this.playBtn.title = 'Stop';
         
-        // Test volume control immediately after play starts
+        // Now set the right channel to the correct slider value
         setTimeout(() => {
-          console.log('Testing volume control after play...');
-          const testVolume = this.rightLevel.value / 100;
-          this.player.volume = testVolume;
-          console.log('Volume set to:', this.player.volume, 'Expected:', testVolume);
-          this.showVolumeChangeFeedback(`Test: Set to ${Math.round(testVolume * 100)}%, Got ${Math.round(this.player.volume * 100)}%`);
-        }, 500);
+          console.log('Setting right channel to slider value after playback starts...');
+          this.adjustRightLevel(this.rightLevel.value);
+          
+          // Test channel separation
+          setTimeout(() => {
+            this.testChannelSeparation();
+          }, 500);
+        }, 100);
         
       } catch (error) {
         console.error('Playback error:', error);
