@@ -11,50 +11,79 @@
 <body>
   <header>
     <h1>🎭 Line Rehearsal</h1>
-    <p class="sub">Hold “My line” to punch your mic into the <strong>right</strong> channel.</p>
+    <p class="sub">Record and manage your line rehearsals</p>
   </header>
 
   <main>
-    <section class="panel">
-      <div class="controls">
-        <button id="startStopBtn" class="primary">Start</button>
-        <button id="myLineBtn" class="hold" disabled title="Hold to route mic to right channel">My line (hold)</button>
-        <button id="playBtn" class="secondary" disabled>Play</button>
-        <button id="downloadBtn" class="ghost" disabled>Download (.webm)</button>
-        <button id="testBtn" class="ghost">Test Audio</button>
-      </div>
-
-      <div class="status">
-        <div><strong>State:</strong> <span id="state">idle</span></div>
-        <div><strong>Elapsed:</strong> <span id="elapsed">00:00</span></div>
-        <div><strong>Recorded:</strong> <span id="size">0.0 MB</span></div>
+    <section class="file-list-section">
+      <h2>Your Recordings</h2>
+      <div id="fileList" class="file-list">
+        <!-- Files will be populated here -->
       </div>
     </section>
-
-    <section class="panel">
-      <h2>Audio Source</h2>
-      <p>Load the play audio file to record other actors' lines</p>
-      <input id="audioFile" type="file" accept="audio/*" />
-      <div id="audioInfo" class="hidden">
-        <p><strong>Loaded:</strong> <span id="fileName"></span></p>
-        <button id="playAudioBtn" class="secondary">Play Audio</button>
-        <button id="stopAudioBtn" class="secondary">Stop Audio</button>
-      </div>
-    </section>
-
-    <section class="panel">
-      <h2>Playback mix</h2>
-      <p>Right channel level (your lines)</p>
-      <input id="rightLevel" type="range" min="0" max="100" value="100" />
-      <div class="labels"><span>Mute right</span><span>Full right</span></div>
-    </section>
-
-    <audio id="player" preload="metadata" controls class="hidden"></audio>
-    <audio id="sourceAudio" preload="metadata" class="hidden"></audio>
   </main>
 
+  <!-- Floating Action Button -->
+  <button id="addButton" class="fab" title="New Recording">+</button>
+
+  <!-- Recording Dialog -->
+  <div id="recordingDialog" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>New Recording</h3>
+        <button id="closeRecordingBtn" class="close-btn">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="mic-selection">
+          <label for="micSelect">Microphone:</label>
+          <select id="micSelect">
+            <option value="">Loading microphones...</option>
+          </select>
+        </div>
+        <div class="recording-controls">
+          <button id="startStopBtn" class="primary">Start</button>
+          <button id="myLineBtn" class="hold" disabled title="Hold to route mic to right channel">My line (hold)</button>
+        </div>
+        <div class="recording-status">
+          <div><strong>State:</strong> <span id="state">idle</span></div>
+          <div><strong>Elapsed:</strong> <span id="elapsed">00:00</span></div>
+          <div><strong>Recorded:</strong> <span id="size">0.0 MB</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Playback Dialog -->
+  <div id="playbackDialog" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="playbackTitle">Playback</h3>
+        <button id="closePlaybackBtn" class="close-btn">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="playback-controls">
+          <button id="seekBackBtn" class="secondary">←15</button>
+          <button id="playBtn" class="primary">Play</button>
+          <button id="seekForwardBtn" class="secondary">15→</button>
+        </div>
+        <div class="playback-mix">
+          <p>Right channel level (your lines)</p>
+          <input id="rightLevel" type="range" min="0" max="100" value="100" />
+          <div class="labels"><span>Mute right</span><span>Full right</span></div>
+        </div>
+        <div class="download-section">
+          <button id="downloadBtn" class="secondary">Download</button>
+        </div>
+        <audio id="player" preload="metadata" controls></audio>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden audio elements for recording -->
+  <audio id="sourceAudio" preload="metadata" class="hidden"></audio>
+
   <footer>
-    <small>Install this as a PWA - works best over HTTPS. v1.0</small>
+    <small>Install this as a PWA - works best over HTTPS. v2.0</small>
   </footer>
 
   <script type="module" src="./app.js"></script>
