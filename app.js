@@ -27,6 +27,8 @@ class LineRecorderApp {
     // Main elements
     this.fileList = document.getElementById('fileList');
     this.addButton = document.getElementById('addButton');
+    this.uploadBtn = document.getElementById('uploadBtn');
+    this.uploadInput = document.getElementById('uploadInput');
     
     // Dialog elements
     this.recordingDialog = document.getElementById('recordingDialog');
@@ -55,6 +57,8 @@ class LineRecorderApp {
   setupEventListeners() {
     // Main interface
     this.addButton.addEventListener('click', () => this.openRecordingDialog());
+    this.uploadBtn.addEventListener('click', () => this.uploadInput.click());
+    this.uploadInput.addEventListener('change', (e) => this.handleFileUpload(e));
     
     // Recording dialog
     this.closeRecordingBtn.addEventListener('click', () => this.closeRecordingDialog());
@@ -62,6 +66,7 @@ class LineRecorderApp {
     this.myLineBtn.addEventListener('mousedown', () => this.startMyLine());
     this.myLineBtn.addEventListener('mouseup', () => this.stopMyLine());
     this.myLineBtn.addEventListener('mouseleave', () => this.stopMyLine());
+    this.micSelect.addEventListener('change', () => this.saveMicrophoneSelection());
     
     // Playback dialog
     this.closePlaybackBtn.addEventListener('click', () => this.closePlaybackDialog());
@@ -280,6 +285,22 @@ class LineRecorderApp {
     const audioUrl = URL.createObjectURL(audioBlob);
     this.player.src = audioUrl;
     
+    // Reset play button state
+    this.playBtn.textContent = '▶️';
+    this.playBtn.title = 'Play';
+    
+    // Restore saved slider position
+    const savedLevel = localStorage.getItem('rightChannelLevel');
+    if (savedLevel) {
+      this.rightLevel.value = savedLevel;
+    }
+    
+    // Handle audio end
+    this.player.onended = () => {
+      this.playBtn.textContent = '▶️';
+      this.playBtn.title = 'Play';
+    };
+    
     // Set up playback audio context
     this.setupPlaybackAudioContext();
   }
@@ -320,15 +341,19 @@ class LineRecorderApp {
     if (this.playbackRightGain) {
       this.playbackRightGain.gain.value = rightGain;
     }
+    // Save the slider position
+    localStorage.setItem('rightChannelLevel', value);
   }
 
   togglePlayback() {
     if (this.player.paused) {
       this.player.play();
-      this.playBtn.textContent = 'Pause';
+      this.playBtn.textContent = '⏹️';
+      this.playBtn.title = 'Stop';
     } else {
       this.player.pause();
-      this.playBtn.textContent = 'Play';
+      this.playBtn.textContent = '▶️';
+      this.playBtn.title = 'Play';
     }
   }
 
@@ -352,6 +377,116 @@ class LineRecorderApp {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     }
+  }
+
+  saveMicrophoneSelection() {
+    const selectedMicId = this.micSelect.value;
+    if (selectedMicId) {
+      localStorage.setItem('selectedMicrophone', selectedMicId);
+    }
+  }
+
+  async handleFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('audio/') && !file.name.toLowerCase().endsWith('.webm')) {
+      alert('Please select an audio file (.webm or other audio format)');
+      return;
+    }
+
+    try {
+      // Get file data
+      const audioData = await file.arrayBuffer();
+      
+      // Get duration by creating a temporary audio element
+      const duration = await this.getAudioDuration(file);
+      
+      // Generate a unique filename if one with the same name already exists
+      let filename = file.name;
+      if (!filename.toLowerCase().endsWith('.webm')) {
+        filename = filename.replace(/\.[^/.]+$/, '') + '.webm';
+      }
+      
+      // Check if filename already exists
+      if (await this.filenameExists(filename)) {
+        const shouldRename = confirm(`A file named "${filename}" already exists. Would you like to rename it automatically?`);
+        if (!shouldRename) {
+          event.target.value = '';
+          return;
+        }
+        filename = await this.getUniqueFilename(filename);
+      }
+      
+      // Create recording object
+      const recording = {
+        name: filename,
+        audioData: audioData,
+        duration: duration,
+        createdAt: new Date().toISOString(),
+        size: file.size
+      };
+      
+      // Save to IndexedDB
+      const transaction = this.db.transaction(['recordings'], 'readwrite');
+      const store = transaction.objectStore('recordings');
+      store.add(recording);
+      
+      // Refresh file list
+      this.loadFileList();
+      
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      alert('Error uploading file. Please try again.');
+    }
+    
+    // Clear the input
+    event.target.value = '';
+  }
+
+  getAudioDuration(file) {
+    return new Promise((resolve) => {
+      const audio = new Audio();
+      const url = URL.createObjectURL(file);
+      
+      audio.addEventListener('loadedmetadata', () => {
+        URL.revokeObjectURL(url);
+        resolve(audio.duration || 0);
+      });
+      
+      audio.addEventListener('error', () => {
+        URL.revokeObjectURL(url);
+        resolve(0); // Default to 0 if we can't get duration
+      });
+      
+      audio.src = url;
+    });
+  }
+
+  async getUniqueFilename(filename) {
+    const baseName = filename.replace(/\.webm$/i, '');
+    let counter = 1;
+    let uniqueFilename = filename;
+    
+    while (await this.filenameExists(uniqueFilename)) {
+      uniqueFilename = `${baseName}-${counter}.webm`;
+      counter++;
+    }
+    
+    return uniqueFilename;
+  }
+
+  async filenameExists(filename) {
+    const transaction = this.db.transaction(['recordings'], 'readonly');
+    const store = transaction.objectStore('recordings');
+    const index = store.index('name');
+    const request = index.get(filename);
+    
+    return new Promise((resolve) => {
+      request.onsuccess = () => resolve(!!request.result);
+      request.onerror = () => resolve(false);
+    });
   }
 
   resetRecordingState() {
@@ -399,9 +534,14 @@ class LineRecorderApp {
         this.micSelect.appendChild(option);
       });
       
-      // Set default to first microphone
-      if (audioInputs.length > 0) {
+      // Try to restore saved microphone selection
+      const savedMicId = localStorage.getItem('selectedMicrophone');
+      if (savedMicId && audioInputs.some(device => device.deviceId === savedMicId)) {
+        this.micSelect.value = savedMicId;
+      } else if (audioInputs.length > 0) {
+        // Fallback to first microphone if saved one not found
         this.micSelect.value = audioInputs[0].deviceId;
+        localStorage.setItem('selectedMicrophone', audioInputs[0].deviceId);
       }
       
     } catch (error) {

@@ -16,7 +16,10 @@
 
   <main>
     <section class="file-list-section">
-      <h2>Your Recordings</h2>
+      <div class="section-header">
+        <h2>Your Recordings</h2>
+        <button id="uploadBtn" class="secondary" title="Upload existing recording">📤</button>
+      </div>
       <div id="fileList" class="file-list">
         <!-- Files will be populated here -->
       </div>
@@ -61,26 +64,33 @@
         <button id="closePlaybackBtn" class="close-btn">×</button>
       </div>
       <div class="modal-body">
-        <div class="playback-controls">
-          <button id="seekBackBtn" class="secondary">←15</button>
-          <button id="playBtn" class="primary">Play</button>
-          <button id="seekForwardBtn" class="secondary">15→</button>
+        <div class="playback-layout">
+          <div class="playback-main">
+            <div class="playback-controls">
+              <button id="seekBackBtn" class="icon-btn" title="Seek back 15 seconds">⏪</button>
+              <button id="playBtn" class="icon-btn primary" title="Play">▶️</button>
+              <button id="seekForwardBtn" class="icon-btn" title="Seek forward 15 seconds">⏩</button>
+            </div>
+            <audio id="player" preload="metadata" controls controlsList="nodownload"></audio>
+            <div class="download-section">
+              <button id="downloadBtn" class="secondary">Download</button>
+            </div>
+          </div>
+          <div class="playback-mix">
+            <div class="mix-labels">
+              <span class="speaker-icon">🔊</span>
+              <input id="rightLevel" type="range" min="0" max="100" value="100" orient="vertical" />
+              <span class="speaker-icon">🔇</span>
+            </div>
+          </div>
         </div>
-        <div class="playback-mix">
-          <p>Right channel level (your lines)</p>
-          <input id="rightLevel" type="range" min="0" max="100" value="100" />
-          <div class="labels"><span>Mute right</span><span>Full right</span></div>
-        </div>
-        <div class="download-section">
-          <button id="downloadBtn" class="secondary">Download</button>
-        </div>
-        <audio id="player" preload="metadata" controls></audio>
       </div>
     </div>
   </div>
 
-  <!-- Hidden audio elements for recording -->
+  <!-- Hidden elements -->
   <audio id="sourceAudio" preload="metadata" class="hidden"></audio>
+  <input id="uploadInput" type="file" accept=".webm,audio/*" class="hidden" />
 
   <footer>
     <small>Install this as a PWA - works best over HTTPS. v2.0</small>
