@@ -684,6 +684,15 @@ class LineRecorderApp {
     this.player.src = '';
     this.playbackDialog.classList.add('hidden');
     this.currentRecording = null;
+    
+    // Clean up any custom sliders
+    const existingCustomSlider = document.querySelector('.custom-slider');
+    if (existingCustomSlider) {
+      existingCustomSlider.remove();
+    }
+    
+    // Show the original slider again
+    this.rightLevel.style.display = '';
   }
 
   async setupPlaybackAudioContext() {
@@ -719,9 +728,10 @@ class LineRecorderApp {
       merger.connect(this.playbackAudioContext.destination);
       
       this.playbackLeftGain.gain.value = 1;
-      this.adjustRightLevel(this.rightLevel.value);
+      this.playbackRightGain.gain.value = this.rightLevel.value / 100;
       
       console.log('Web Audio API setup successful');
+      this.showVolumeChangeFeedback(`Web Audio API active - Volume: ${this.rightLevel.value}%`);
       
     } catch (error) {
       console.error('Error setting up audio context:', error);
@@ -789,6 +799,7 @@ class LineRecorderApp {
     if (this.playbackRightGain) {
       console.log('Using Web Audio API, setting gain to:', rightGain);
       this.playbackRightGain.gain.value = rightGain;
+      this.showVolumeChangeFeedback(`Web Audio: ${value}%`);
     } else {
       console.log('Web Audio API not available, using fallback');
       // Fallback: Use HTML5 audio element volume control
@@ -924,6 +935,12 @@ class LineRecorderApp {
 
   createCustomSlider() {
     console.log('Creating custom slider for iOS...');
+    
+    // Check if custom slider already exists
+    if (document.querySelector('.custom-slider')) {
+      console.log('Custom slider already exists, not creating another');
+      return;
+    }
     
     // Hide the original slider
     this.rightLevel.style.display = 'none';
