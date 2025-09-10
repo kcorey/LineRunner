@@ -108,7 +108,16 @@ class LineRecorderApp {
     this.seekBackBtn.addEventListener('click', () => this.seekBackward());
     this.seekForwardBtn.addEventListener('click', () => this.seekForward());
     this.downloadBtn.addEventListener('click', () => this.downloadRecording());
-    this.rightLevel.addEventListener('input', (e) => this.adjustRightLevel(e.target.value));
+    this.rightLevel.addEventListener('input', (e) => {
+      console.log('Slider input event fired, value:', e.target.value);
+      this.adjustRightLevel(e.target.value);
+    });
+    
+    // Also add change event for better iOS compatibility
+    this.rightLevel.addEventListener('change', (e) => {
+      console.log('Slider change event fired, value:', e.target.value);
+      this.adjustRightLevel(e.target.value);
+    });
     
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => this.handleKeydown(e));
@@ -725,12 +734,15 @@ class LineRecorderApp {
   }
 
   adjustRightLevel(value) {
+    console.log('adjustRightLevel called with value:', value);
     const rightGain = value / 100;
     
     // Try Web Audio API first
     if (this.playbackRightGain) {
+      console.log('Using Web Audio API, setting gain to:', rightGain);
       this.playbackRightGain.gain.value = rightGain;
     } else {
+      console.log('Web Audio API not available, using fallback');
       // Fallback: Use HTML5 audio element volume control
       // This is a simplified approach for iOS when Web Audio API fails
       this.adjustAudioElementVolume(value);
@@ -742,20 +754,155 @@ class LineRecorderApp {
 
   adjustAudioElementVolume(value) {
     // Fallback volume control for when Web Audio API isn't available
-    // This is a simplified approach - we can't do true channel separation
-    // but we can at least provide some volume control
+    console.log('adjustAudioElementVolume called with value:', value);
     
     if (this.player) {
       // Convert slider value (0-100) to audio volume (0-1)
       const volume = value / 100;
+      console.log('Setting player volume to:', volume);
       
-      // For iOS fallback, we'll use the main volume control
-      // This isn't perfect channel separation, but it's better than nothing
-      this.player.volume = Math.max(0.1, volume); // Keep minimum volume so audio is audible
-      
-      // Visual feedback for the user
-      this.updateVolumeIndicator(value);
+      try {
+        // Try multiple approaches for iOS compatibility
+        
+        // Approach 1: Direct volume control
+        this.player.volume = Math.max(0.1, volume);
+        console.log('Player volume set to:', this.player.volume);
+        
+        // Approach 2: If direct volume doesn't work, try muted approach
+        if (this.player.volume === 0 && value > 0) {
+          console.log('Direct volume failed, trying muted approach');
+          this.player.muted = false;
+          this.player.volume = Math.max(0.1, volume);
+        }
+        
+        // Approach 3: CSS-based volume simulation (last resort)
+        if (this.player.volume === 0 && value > 0) {
+          console.log('Trying CSS-based volume simulation');
+          this.simulateVolumeWithCSS(value);
+        }
+        
+        // Visual feedback for the user
+        this.updateVolumeIndicator(value);
+        
+        // Also try to show a visual indicator that volume changed
+        this.showVolumeChangeFeedback(value);
+        
+      } catch (error) {
+        console.error('Error setting volume:', error);
+        this.showVolumeError();
+      }
+    } else {
+      console.error('Player not available for volume control');
     }
+  }
+
+  simulateVolumeWithCSS(value) {
+    // Last resort: simulate volume changes with CSS opacity
+    // This won't actually change audio volume but gives visual feedback
+    console.log('Simulating volume with CSS, value:', value);
+    
+    const audioElement = this.player;
+    if (audioElement) {
+      // Use opacity to simulate volume changes
+      const opacity = Math.max(0.1, value / 100);
+      audioElement.style.opacity = opacity;
+      
+      // Show a message that this is a visual simulation
+      this.showVolumeSimulationNotice();
+    }
+  }
+
+  showVolumeSimulationNotice() {
+    const notice = document.createElement('div');
+    notice.className = 'volume-simulation-notice';
+    notice.innerHTML = `
+      <div style="text-align: center; padding: 8px;">
+        <div style="color: #f59e0b; margin-bottom: 4px;">ℹ️</div>
+        <div style="font-size: 11px;">Volume control simulated (iOS limitation)</div>
+      </div>
+    `;
+    
+    notice.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #1e293b;
+      color: white;
+      border-radius: 6px;
+      z-index: 10000;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    `;
+    
+    document.body.appendChild(notice);
+    
+    // Remove after 4 seconds
+    setTimeout(() => {
+      if (notice.parentNode) {
+        notice.remove();
+      }
+    }, 4000);
+  }
+
+  showVolumeChangeFeedback(value) {
+    // Show a brief visual feedback that volume changed
+    const feedback = document.createElement('div');
+    feedback.className = 'volume-feedback';
+    feedback.textContent = `Volume: ${value}%`;
+    
+    feedback.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      z-index: 10000;
+      pointer-events: none;
+    `;
+    
+    document.body.appendChild(feedback);
+    
+    // Remove after 1 second
+    setTimeout(() => {
+      if (feedback.parentNode) {
+        feedback.remove();
+      }
+    }, 1000);
+  }
+
+  showVolumeError() {
+    // Show error if volume control fails
+    const error = document.createElement('div');
+    error.className = 'volume-error';
+    error.innerHTML = `
+      <div style="text-align: center; padding: 10px;">
+        <div style="color: #ef4444; margin-bottom: 5px;">⚠️</div>
+        <div style="font-size: 12px;">Volume control not available on this device</div>
+      </div>
+    `;
+    
+    error.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #1e293b;
+      color: white;
+      border-radius: 8px;
+      z-index: 10000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    `;
+    
+    document.body.appendChild(error);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+      if (error.parentNode) {
+        error.remove();
+      }
+    }, 3000);
   }
 
   updateVolumeIndicator(value) {

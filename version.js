@@ -4,7 +4,7 @@
 const VERSION = {
   major: 2,
   minor: 0,
-  patch: 7,
+  patch: 8,
   build: 1757513963813 // Timestamp for unique builds
 };
 
