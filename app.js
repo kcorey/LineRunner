@@ -108,15 +108,50 @@ class LineRecorderApp {
     this.seekBackBtn.addEventListener('click', () => this.seekBackward());
     this.seekForwardBtn.addEventListener('click', () => this.seekForward());
     this.downloadBtn.addEventListener('click', () => this.downloadRecording());
+    // Standard events
     this.rightLevel.addEventListener('input', (e) => {
       console.log('Slider input event fired, value:', e.target.value);
       this.adjustRightLevel(e.target.value);
     });
     
-    // Also add change event for better iOS compatibility
     this.rightLevel.addEventListener('change', (e) => {
       console.log('Slider change event fired, value:', e.target.value);
       this.adjustRightLevel(e.target.value);
+    });
+    
+    // iOS-specific touch events
+    this.rightLevel.addEventListener('touchstart', (e) => {
+      console.log('Slider touchstart event fired');
+      e.preventDefault();
+    });
+    
+    this.rightLevel.addEventListener('touchmove', (e) => {
+      console.log('Slider touchmove event fired');
+      e.preventDefault();
+      // Get the touch position and calculate value
+      const touch = e.touches[0];
+      const rect = this.rightLevel.getBoundingClientRect();
+      const x = touch.clientX - rect.left;
+      const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
+      const value = Math.round(percentage);
+      
+      console.log('Touch position calculated value:', value);
+      this.rightLevel.value = value;
+      this.adjustRightLevel(value);
+    });
+    
+    this.rightLevel.addEventListener('touchend', (e) => {
+      console.log('Slider touchend event fired, final value:', this.rightLevel.value);
+      e.preventDefault();
+      this.adjustRightLevel(this.rightLevel.value);
+    });
+    
+    // Also add mousemove for desktop
+    this.rightLevel.addEventListener('mousemove', (e) => {
+      if (e.buttons === 1) { // Only when mouse is pressed
+        console.log('Slider mousemove event fired, value:', e.target.value);
+        this.adjustRightLevel(e.target.value);
+      }
     });
     
     // Keyboard shortcuts
@@ -410,6 +445,9 @@ class LineRecorderApp {
     
     // Initialize the volume indicator
     this.updateVolumeIndicator(this.rightLevel.value);
+    
+    // Test if slider is working on iOS
+    this.testSliderFunctionality();
     
     // Handle audio end
     this.player.onended = () => {
@@ -841,6 +879,168 @@ class LineRecorderApp {
         notice.remove();
       }
     }, 4000);
+  }
+
+  testSliderFunctionality() {
+    // Test if the slider is responsive on iOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    
+    if (isIOS) {
+      console.log('Testing slider functionality on iOS...');
+      
+      // Set a test value and see if it triggers events
+      const originalValue = this.rightLevel.value;
+      this.rightLevel.value = 50;
+      
+      // Check if the value actually changed
+      setTimeout(() => {
+        if (this.rightLevel.value === 50) {
+          console.log('Slider value change successful');
+          // Restore original value
+          this.rightLevel.value = originalValue;
+        } else {
+          console.log('Slider value change failed, creating custom slider');
+          this.createCustomSlider();
+        }
+      }, 100);
+    }
+  }
+
+  createCustomSlider() {
+    console.log('Creating custom slider for iOS...');
+    
+    // Hide the original slider
+    this.rightLevel.style.display = 'none';
+    
+    // Create a custom slider container
+    const customSlider = document.createElement('div');
+    customSlider.className = 'custom-slider';
+    customSlider.innerHTML = `
+      <div class="slider-track">
+        <div class="slider-fill"></div>
+        <div class="slider-thumb"></div>
+      </div>
+      <div class="slider-labels">
+        <span>0%</span>
+        <span>100%</span>
+      </div>
+    `;
+    
+    // Add styles
+    customSlider.style.cssText = `
+      width: 100%;
+      height: 40px;
+      position: relative;
+      margin: 10px 0;
+    `;
+    
+    const style = document.createElement('style');
+    style.textContent = `
+      .slider-track {
+        width: 100%;
+        height: 8px;
+        background: #374151;
+        border-radius: 4px;
+        position: relative;
+        margin: 16px 0;
+      }
+      .slider-fill {
+        height: 100%;
+        background: #3b82f6;
+        border-radius: 4px;
+        width: ${this.rightLevel.value}%;
+        transition: width 0.1s ease;
+      }
+      .slider-thumb {
+        position: absolute;
+        top: -8px;
+        left: ${this.rightLevel.value}%;
+        width: 24px;
+        height: 24px;
+        background: #3b82f6;
+        border: 2px solid #1e40af;
+        border-radius: 50%;
+        cursor: pointer;
+        transform: translateX(-50%);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      }
+      .slider-labels {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        color: #9ca3af;
+        margin-top: 4px;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    // Insert after the original slider
+    this.rightLevel.parentNode.insertBefore(customSlider, this.rightLevel.nextSibling);
+    
+    // Add touch events to custom slider
+    let isDragging = false;
+    
+    customSlider.addEventListener('touchstart', (e) => {
+      isDragging = true;
+      this.updateCustomSlider(e, customSlider);
+    });
+    
+    customSlider.addEventListener('touchmove', (e) => {
+      if (isDragging) {
+        e.preventDefault();
+        this.updateCustomSlider(e, customSlider);
+      }
+    });
+    
+    customSlider.addEventListener('touchend', () => {
+      isDragging = false;
+    });
+    
+    // Also add mouse events for desktop
+    customSlider.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      this.updateCustomSlider(e, customSlider);
+    });
+    
+    customSlider.addEventListener('mousemove', (e) => {
+      if (isDragging) {
+        this.updateCustomSlider(e, customSlider);
+      }
+    });
+    
+    customSlider.addEventListener('mouseup', () => {
+      isDragging = false;
+    });
+  }
+
+  updateCustomSlider(e, customSlider) {
+    const track = customSlider.querySelector('.slider-track');
+    const rect = track.getBoundingClientRect();
+    
+    let x;
+    if (e.touches && e.touches[0]) {
+      x = e.touches[0].clientX - rect.left;
+    } else {
+      x = e.clientX - rect.left;
+    }
+    
+    const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
+    const value = Math.round(percentage);
+    
+    // Update visual elements
+    const fill = customSlider.querySelector('.slider-fill');
+    const thumb = customSlider.querySelector('.slider-thumb');
+    
+    fill.style.width = value + '%';
+    thumb.style.left = value + '%';
+    
+    // Update the hidden slider value
+    this.rightLevel.value = value;
+    
+    // Trigger volume adjustment
+    this.adjustRightLevel(value);
+    
+    console.log('Custom slider updated to:', value);
   }
 
   showVolumeChangeFeedback(value) {

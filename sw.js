@@ -1,7 +1,7 @@
 // Service Worker for Line Rehearsal PWA
 // Version: 2.0.0 - Updated for cache-busting and auto-updates
 
-const CACHE_NAME = 'line-rehearsal-v2.0.8';
+const CACHE_NAME = 'line-rehearsal-v2.0.9';
 const STATIC_CACHE = 'line-rehearsal-static-v2.0.0';
 const DYNAMIC_CACHE = 'line-rehearsal-dynamic-v2.0.0';
 
