@@ -53,6 +53,7 @@ class LineRecorderApp {
     this.seekForwardBtn = document.getElementById('seekForwardBtn');
     this.downloadBtn = document.getElementById('downloadBtn');
     this.rightLevel = document.getElementById('rightLevel');
+    this.volumeIndicator = document.querySelector('.volume-indicator');
     this.player = document.getElementById('player');
   }
 
@@ -456,6 +457,11 @@ class LineRecorderApp {
     // Initialize the volume indicator
     this.updateVolumeIndicator(this.rightLevel.value);
     
+    // Update the visual volume indicator
+    if (this.volumeIndicator) {
+      this.volumeIndicator.textContent = this.rightLevel.value + '%';
+    }
+    
     // Test if slider is working on iOS
     this.testSliderFunctionality();
     
@@ -720,18 +726,26 @@ class LineRecorderApp {
       const splitter = this.playbackAudioContext.createChannelSplitter(2);
       const merger = this.playbackAudioContext.createChannelMerger(2);
       
+      // Connect source to splitter
       source.connect(splitter);
-      splitter.connect(this.playbackLeftGain, 0);
-      splitter.connect(this.playbackRightGain, 1);
-      this.playbackLeftGain.connect(merger, 0, 0);
-      this.playbackRightGain.connect(merger, 0, 1);
+      
+      // Split channels: left channel (0) and right channel (1)
+      splitter.connect(this.playbackLeftGain, 0, 0);  // Left channel to left gain
+      splitter.connect(this.playbackRightGain, 1, 0); // Right channel to right gain
+      
+      // Merge back: left gain to left output, right gain to right output
+      this.playbackLeftGain.connect(merger, 0, 0);   // Left gain to left output
+      this.playbackRightGain.connect(merger, 0, 1);  // Right gain to right output
+      
+      // Connect merger to destination
       merger.connect(this.playbackAudioContext.destination);
       
-      this.playbackLeftGain.gain.value = 1;
-      this.playbackRightGain.gain.value = this.rightLevel.value / 100;
+      // Set initial gain values: left channel always full volume, right channel adjustable
+      this.playbackLeftGain.gain.value = 1.0;  // Left channel always loud
+      this.playbackRightGain.gain.value = this.rightLevel.value / 100; // Right channel adjustable
       
-      console.log('Web Audio API setup successful');
-      this.showVolumeChangeFeedback(`Web Audio API active - Volume: ${this.rightLevel.value}%`);
+      console.log('Web Audio API setup successful - Left: 100%, Right:', this.rightLevel.value + '%');
+      this.showVolumeChangeFeedback(`Stereo Active - L:100% R:${this.rightLevel.value}%`);
       
     } catch (error) {
       console.error('Error setting up audio context:', error);
@@ -756,8 +770,8 @@ class LineRecorderApp {
     indicator.className = 'fallback-indicator';
     indicator.innerHTML = `
       <div class="fallback-content">
-        <span class="fallback-icon">ℹ️</span>
-        <span class="fallback-text">Using simplified volume control</span>
+        <span class="fallback-icon">⚠️</span>
+        <span class="fallback-text">Volume affects both channels</span>
       </div>
     `;
     
@@ -766,7 +780,7 @@ class LineRecorderApp {
       position: absolute;
       top: 10px;
       right: 10px;
-      background: rgba(59, 130, 246, 0.9);
+      background: rgba(245, 158, 11, 0.9);
       color: white;
       padding: 4px 8px;
       border-radius: 4px;
@@ -782,12 +796,12 @@ class LineRecorderApp {
     if (playbackDialog) {
       playbackDialog.appendChild(indicator);
       
-      // Auto-hide after 3 seconds
+      // Auto-hide after 5 seconds (longer since it's important info)
       setTimeout(() => {
         if (indicator.parentNode) {
           indicator.remove();
         }
-      }, 3000);
+      }, 5000);
     }
   }
 
@@ -795,11 +809,21 @@ class LineRecorderApp {
     console.log('adjustRightLevel called with value:', value);
     const rightGain = value / 100;
     
+    // Update the visual indicator
+    if (this.volumeIndicator) {
+      this.volumeIndicator.textContent = value + '%';
+    }
+    
     // Try Web Audio API first
     if (this.playbackRightGain) {
-      console.log('Using Web Audio API, setting gain to:', rightGain);
+      console.log('Using Web Audio API, setting RIGHT channel gain to:', rightGain);
+      // Only adjust the right channel - left channel should remain at full volume
       this.playbackRightGain.gain.value = rightGain;
-      this.showVolumeChangeFeedback(`Web Audio: ${value}%`);
+      // Ensure left channel stays at full volume
+      if (this.playbackLeftGain) {
+        this.playbackLeftGain.gain.value = 1.0;
+      }
+      this.showVolumeChangeFeedback(`Stereo: L:100% R:${value}%`);
     } else {
       console.log('Web Audio API not available, using fallback');
       // Fallback: Use HTML5 audio element volume control
@@ -813,6 +837,7 @@ class LineRecorderApp {
 
   adjustAudioElementVolume(value) {
     // Fallback volume control for when Web Audio API isn't available
+    // NOTE: This affects both channels since HTML5 audio doesn't support per-channel control
     console.log('adjustAudioElementVolume called with value:', value);
     
     if (this.player) {
@@ -849,8 +874,8 @@ class LineRecorderApp {
         // Visual feedback for the user
         this.updateVolumeIndicator(value);
         
-        // Show feedback with actual volume achieved
-        this.showVolumeChangeFeedback(`Volume: ${value}% (Actual: ${Math.round(this.player.volume * 100)}%)`);
+        // Show feedback indicating this affects both channels
+        this.showVolumeChangeFeedback(`Both Channels: ${value}% (Fallback Mode)`);
         
       } catch (error) {
         console.error('Error setting volume:', error);
