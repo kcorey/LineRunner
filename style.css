@@ -4,6 +4,36 @@ body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarel
 header { padding: 1.25rem 1rem; border-bottom: 1px solid #1f2937; background: #0f172a; }
 h1 { margin: 0; font-size: 1.5rem; }
 .sub { margin: .25rem 0 0; color: #9ca3af; }
+
+/* Permission Status */
+.permission-status { 
+  display: flex; 
+  align-items: center; 
+  gap: 0.5rem; 
+  margin-top: 0.75rem; 
+  padding: 0.5rem 0.75rem; 
+  background: #1f2937; 
+  border: 1px solid #374151; 
+  border-radius: 8px; 
+  font-size: 0.9rem; 
+  transition: all 0.3s ease;
+}
+.permission-status.granted { 
+  background: #064e3b; 
+  border-color: #10b981; 
+  color: #6ee7b7; 
+}
+.permission-status.denied { 
+  background: #7f1d1d; 
+  border-color: #ef4444; 
+  color: #fca5a5; 
+}
+.permission-status.hidden { 
+  display: none; 
+}
+#permissionIcon { 
+  font-size: 1.1rem; 
+}
 main { max-width: 800px; margin: 0 auto; padding: 1rem; }
 
 /* File List Styles */

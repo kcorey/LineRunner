@@ -17,10 +17,12 @@ class LineRecorderApp {
     this.playbackLeftGain = null;
     this.playbackRightGain = null;
     this.untitledCounter = 1;
+    this.permissionManager = null;
     
     this.initializeElements();
     this.setupEventListeners();
     this.initializeDatabase();
+    this.initializePermissionManager();
   }
 
   initializeElements() {
@@ -119,6 +121,47 @@ class LineRecorderApp {
         }
       };
     });
+  }
+
+  initializePermissionManager() {
+    this.permissionManager = new PermissionManager();
+    this.permissionManager.onPermissionChange = (hasPermission) => {
+      this.updatePermissionUI(hasPermission);
+    };
+  }
+
+  updatePermissionUI(hasPermission) {
+    const addButton = this.addButton;
+    const uploadBtn = this.uploadBtn;
+    const permissionStatus = document.getElementById('permissionStatus');
+    const permissionIcon = document.getElementById('permissionIcon');
+    const permissionText = document.getElementById('permissionText');
+    
+    if (hasPermission) {
+      addButton.disabled = false;
+      addButton.title = 'New Recording';
+      addButton.style.opacity = '1';
+      uploadBtn.disabled = false;
+      uploadBtn.title = 'Upload existing recording';
+      
+      // Update permission status indicator
+      permissionStatus.classList.remove('hidden', 'denied');
+      permissionStatus.classList.add('granted');
+      permissionIcon.textContent = '✅';
+      permissionText.textContent = 'Microphone access granted';
+    } else {
+      addButton.disabled = true;
+      addButton.title = 'Microphone permission required';
+      addButton.style.opacity = '0.5';
+      uploadBtn.disabled = false; // Upload doesn't need mic permission
+      uploadBtn.title = 'Upload existing recording';
+      
+      // Update permission status indicator
+      permissionStatus.classList.remove('hidden', 'granted');
+      permissionStatus.classList.add('denied');
+      permissionIcon.textContent = '🎤';
+      permissionText.textContent = 'Microphone access required';
+    }
   }
 
   async loadFileList() {
@@ -262,7 +305,17 @@ class LineRecorderApp {
     }
   }
 
-  openRecordingDialog() {
+  async openRecordingDialog() {
+    // Check microphone permissions first
+    const hasPermission = await this.permissionManager.checkMicrophonePermission();
+    
+    if (!hasPermission) {
+      const granted = await this.permissionManager.requestMicrophonePermission();
+      if (!granted) {
+        return; // User denied permission
+      }
+    }
+    
     this.recordingDialog.classList.remove('hidden');
     this.resetRecordingState();
     this.loadMicrophones();
@@ -711,6 +764,317 @@ class LineRecorderApp {
   formatDate(dateString) {
     const date = new Date(dateString);
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+}
+
+// Permission Manager for handling microphone access
+class PermissionManager {
+  constructor() {
+    this.onPermissionChange = null;
+    this.checkPermissionStatus();
+  }
+
+  async checkPermissionStatus() {
+    if (navigator.permissions) {
+      try {
+        const permission = await navigator.permissions.query({ name: 'microphone' });
+        this.onPermissionChange?.(permission.state === 'granted');
+        
+        permission.addEventListener('change', () => {
+          this.onPermissionChange?.(permission.state === 'granted');
+        });
+      } catch (error) {
+        console.log('Permission API not supported, will check on demand');
+      }
+    }
+  }
+
+  async checkMicrophonePermission() {
+    try {
+      // Try to get user media to check if permission is granted
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: true,
+        video: false 
+      });
+      
+      // If we get here, permission is granted
+      stream.getTracks().forEach(track => track.stop());
+      return true;
+    } catch (error) {
+      console.log('Microphone permission not granted:', error.name);
+      return false;
+    }
+  }
+
+  async requestMicrophonePermission() {
+    return new Promise(async (resolve) => {
+      // Show permission request dialog
+      const granted = await this.showPermissionDialog();
+      
+      if (granted) {
+        try {
+          // Try to get user media
+          const stream = await navigator.mediaDevices.getUserMedia({ 
+            audio: true,
+            video: false 
+          });
+          
+          // Permission granted
+          stream.getTracks().forEach(track => track.stop());
+          this.onPermissionChange?.(true);
+          resolve(true);
+        } catch (error) {
+          console.error('Failed to get microphone access:', error);
+          this.showPermissionDeniedDialog(error);
+          resolve(false);
+        }
+      } else {
+        resolve(false);
+      }
+    });
+  }
+
+  async showPermissionDialog() {
+    return new Promise((resolve) => {
+      // Create permission request modal
+      const modal = document.createElement('div');
+      modal.className = 'permission-modal';
+      modal.innerHTML = `
+        <div class="permission-content">
+          <div class="permission-icon">🎤</div>
+          <h3>Microphone Access Required</h3>
+          <p>Line Rehearsal needs access to your microphone to record your lines.</p>
+          <div class="permission-steps">
+            <div class="step">
+              <span class="step-number">1</span>
+              <span class="step-text">Tap "Allow" when prompted</span>
+            </div>
+            <div class="step">
+              <span class="step-number">2</span>
+              <span class="step-text">If blocked, check your browser settings</span>
+            </div>
+          </div>
+          <div class="permission-actions">
+            <button id="requestPermission" class="primary">Grant Permission</button>
+            <button id="cancelPermission" class="secondary">Cancel</button>
+          </div>
+        </div>
+      `;
+
+      // Add styles
+      modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        padding: 20px;
+      `;
+
+      const style = document.createElement('style');
+      style.textContent = `
+        .permission-content {
+          background: white;
+          border-radius: 16px;
+          padding: 24px;
+          max-width: 400px;
+          width: 100%;
+          text-align: center;
+          box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+        .permission-icon {
+          font-size: 48px;
+          margin-bottom: 16px;
+        }
+        .permission-content h3 {
+          margin: 0 0 12px 0;
+          color: #1e293b;
+          font-size: 20px;
+        }
+        .permission-content p {
+          margin: 0 0 20px 0;
+          color: #64748b;
+          line-height: 1.5;
+        }
+        .permission-steps {
+          text-align: left;
+          margin: 20px 0;
+          padding: 16px;
+          background: #f8fafc;
+          border-radius: 8px;
+        }
+        .step {
+          display: flex;
+          align-items: center;
+          margin-bottom: 8px;
+        }
+        .step:last-child {
+          margin-bottom: 0;
+        }
+        .step-number {
+          background: #3b82f6;
+          color: white;
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 12px;
+          font-weight: bold;
+          margin-right: 12px;
+          flex-shrink: 0;
+        }
+        .step-text {
+          color: #475569;
+          font-size: 14px;
+        }
+        .permission-actions {
+          display: flex;
+          gap: 12px;
+          margin-top: 20px;
+        }
+        .permission-actions button {
+          flex: 1;
+          padding: 12px 16px;
+          border: none;
+          border-radius: 8px;
+          font-size: 16px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .permission-actions .primary {
+          background: #3b82f6;
+          color: white;
+        }
+        .permission-actions .primary:hover {
+          background: #2563eb;
+        }
+        .permission-actions .secondary {
+          background: #f1f5f9;
+          color: #64748b;
+        }
+        .permission-actions .secondary:hover {
+          background: #e2e8f0;
+        }
+      `;
+      document.head.appendChild(style);
+      document.body.appendChild(modal);
+
+      // Add event listeners
+      document.getElementById('requestPermission').addEventListener('click', () => {
+        modal.remove();
+        resolve(true);
+      });
+
+      document.getElementById('cancelPermission').addEventListener('click', () => {
+        modal.remove();
+        resolve(false);
+      });
+
+      // Close on backdrop click
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.remove();
+          resolve(false);
+        }
+      });
+    });
+  }
+
+  showPermissionDeniedDialog(error) {
+    const modal = document.createElement('div');
+    modal.className = 'permission-modal';
+    
+    let errorMessage = 'Microphone access was denied.';
+    let instructions = 'Please check your browser settings and try again.';
+    
+    if (error.name === 'NotAllowedError') {
+      errorMessage = 'Microphone access was blocked.';
+      instructions = 'Please allow microphone access in your browser settings and refresh the page.';
+    } else if (error.name === 'NotFoundError') {
+      errorMessage = 'No microphone found.';
+      instructions = 'Please connect a microphone and try again.';
+    } else if (error.name === 'NotSupportedError') {
+      errorMessage = 'Microphone not supported.';
+      instructions = 'Your browser or device does not support microphone access.';
+    }
+
+    modal.innerHTML = `
+      <div class="permission-content">
+        <div class="permission-icon">🚫</div>
+        <h3>${errorMessage}</h3>
+        <p>${instructions}</p>
+        <div class="permission-help">
+          <h4>How to enable microphone access:</h4>
+          <div class="help-steps">
+            <div class="help-step">
+              <strong>iPhone Safari:</strong> Settings → Safari → Camera & Microphone → Allow
+            </div>
+            <div class="help-step">
+              <strong>Android Chrome:</strong> Tap the lock icon in address bar → Permissions → Microphone → Allow
+            </div>
+            <div class="help-step">
+              <strong>Desktop:</strong> Click the microphone icon in address bar → Allow
+            </div>
+          </div>
+        </div>
+        <div class="permission-actions">
+          <button id="closePermissionError" class="primary">Got it</button>
+        </div>
+      </div>
+    `;
+
+    // Add styles for error dialog
+    const style = document.createElement('style');
+    style.textContent = `
+      .permission-help {
+        text-align: left;
+        margin: 20px 0;
+        padding: 16px;
+        background: #fef2f2;
+        border-radius: 8px;
+        border-left: 4px solid #ef4444;
+      }
+      .permission-help h4 {
+        margin: 0 0 12px 0;
+        color: #dc2626;
+        font-size: 14px;
+      }
+      .help-steps {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .help-step {
+        font-size: 13px;
+        color: #7f1d1d;
+        line-height: 1.4;
+      }
+      .help-step strong {
+        color: #dc2626;
+      }
+    `;
+    document.head.appendChild(style);
+    document.body.appendChild(modal);
+
+    // Add event listener
+    document.getElementById('closePermissionError').addEventListener('click', () => {
+      modal.remove();
+    });
+
+    // Close on backdrop click
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.remove();
+      }
+    });
   }
 }
 
