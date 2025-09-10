@@ -740,8 +740,8 @@ class LineRecorderApp {
       // Connect merger to destination
       merger.connect(this.playbackAudioContext.destination);
       
-      // Set initial gain values: left channel always full volume, right channel adjustable
-      this.playbackLeftGain.gain.value = 1.0;  // Left channel always loud
+      // Set initial gain values: left channel ALWAYS full volume, right channel adjustable
+      this.playbackLeftGain.gain.value = 1.0;  // Left channel ALWAYS at 100%
       this.playbackRightGain.gain.value = this.rightLevel.value / 100; // Right channel adjustable
       
       console.log('Web Audio API setup successful - Left: 100%, Right:', this.rightLevel.value + '%');
@@ -805,6 +805,14 @@ class LineRecorderApp {
     }
   }
 
+  ensureLeftChannelAtFullVolume() {
+    // Ensure left channel is ALWAYS at 100% volume
+    if (this.playbackLeftGain) {
+      this.playbackLeftGain.gain.value = 1.0;
+      console.log('Left channel ensured at 100% volume');
+    }
+  }
+
   adjustRightLevel(value) {
     console.log('adjustRightLevel called with value:', value);
     const rightGain = value / 100;
@@ -817,12 +825,10 @@ class LineRecorderApp {
     // Try Web Audio API first
     if (this.playbackRightGain) {
       console.log('Using Web Audio API, setting RIGHT channel gain to:', rightGain);
-      // Only adjust the right channel - left channel should remain at full volume
+      // ONLY adjust the right channel - left channel is NEVER touched
       this.playbackRightGain.gain.value = rightGain;
-      // Ensure left channel stays at full volume
-      if (this.playbackLeftGain) {
-        this.playbackLeftGain.gain.value = 1.0;
-      }
+      // Ensure left channel is still at 100% (should never change, but double-check)
+      this.ensureLeftChannelAtFullVolume();
       this.showVolumeChangeFeedback(`Stereo: L:100% R:${value}%`);
     } else {
       console.log('Web Audio API not available, using fallback');
@@ -1180,6 +1186,9 @@ class LineRecorderApp {
         if (!this.playbackAudioContext) {
           await this.setupPlaybackAudioContext();
         }
+        
+        // Ensure left channel is always at 100% before playing
+        this.ensureLeftChannelAtFullVolume();
         
         // Try to play the audio
         await this.player.play();

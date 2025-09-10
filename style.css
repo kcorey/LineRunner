@@ -161,6 +161,12 @@ main { max-width: 800px; margin: 0 auto; padding: 1rem; }
   color: #9ca3af;
   font-weight: 600;
   text-align: center;
+  line-height: 1.2;
+}
+.volume-label small {
+  font-size: 0.7rem;
+  color: #6b7280;
+  font-weight: 400;
 }
 .volume-indicator {
   font-size: 0.75rem;

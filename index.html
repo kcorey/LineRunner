@@ -84,7 +84,7 @@
             <div class="mix-labels">
               <span class="speaker-icon">🔊</span>
               <div class="volume-control">
-                <div class="volume-label">Partner Volume</div>
+                <div class="volume-label">Partner Volume<br><small>(Right Channel Only)</small></div>
                 <input id="rightLevel" type="range" min="0" max="100" value="100" orient="vertical" />
                 <div class="volume-indicator">100%</div>
               </div>
@@ -100,9 +100,6 @@
   <audio id="sourceAudio" preload="metadata" class="hidden"></audio>
   <input id="uploadInput" type="file" accept=".webm,audio/*" class="hidden" />
 
-  <footer>
-    <small>Install this as a PWA - works best over HTTPS. v2.0</small>
-  </footer>
 
   <script type="module" src="./app.js"></script>
 </body>
