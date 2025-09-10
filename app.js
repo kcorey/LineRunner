@@ -384,10 +384,8 @@ class LineRecorderApp {
     this.playbackTitle.textContent = recording.name;
     this.playbackDialog.classList.remove('hidden');
     
-    // Load the audio
-    const audioBlob = new Blob([recording.audioData], { type: 'audio/webm' });
-    const audioUrl = URL.createObjectURL(audioBlob);
-    this.player.src = audioUrl;
+    // Load the audio with iOS compatibility
+    this.loadAudioForPlayback(recording);
     
     // Reset play button state
     this.playBtn.textContent = '▶️';
@@ -405,8 +403,218 @@ class LineRecorderApp {
       this.playBtn.title = 'Play';
     };
     
-    // Set up playback audio context
-    this.setupPlaybackAudioContext();
+    // Set up playback audio context (will be initialized on first play)
+    this.playbackAudioContext = null;
+  }
+
+  async loadAudioForPlayback(recording) {
+    try {
+      // Detect if we're on iOS
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      
+      // Create audio blob with proper MIME type
+      let audioBlob;
+      let mimeType = 'audio/webm; codecs=opus';
+      
+      if (isIOS) {
+        // iOS has limited WebM support, try different MIME types
+        mimeType = 'audio/webm';
+      }
+      
+      audioBlob = new Blob([recording.audioData], { type: mimeType });
+      const audioUrl = URL.createObjectURL(audioBlob);
+      
+      // Set up error handling
+      this.player.onerror = (e) => {
+        console.error('Audio playback error:', e);
+        if (isIOS) {
+          this.tryIOSAudioFallback(recording);
+        } else {
+          this.showAudioError();
+        }
+      };
+      
+      this.player.onloadstart = () => {
+        console.log('Audio loading started');
+      };
+      
+      this.player.oncanplay = () => {
+        console.log('Audio can play');
+      };
+      
+      this.player.onloadedmetadata = () => {
+        console.log('Audio metadata loaded');
+      };
+      
+      // Load the audio
+      this.player.src = audioUrl;
+      this.player.load(); // Force load
+      
+    } catch (error) {
+      console.error('Error loading audio:', error);
+      this.showAudioError();
+    }
+  }
+
+  async tryIOSAudioFallback(recording) {
+    console.log('Trying iOS audio fallback...');
+    
+    // Show a message that we're trying a different approach
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'ios-loading';
+    loadingDiv.innerHTML = `
+      <div class="loading-content">
+        <div class="loading-icon">🔄</div>
+        <p>Optimizing audio for iOS...</p>
+      </div>
+    `;
+    
+    loadingDiv.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #1e293b;
+      color: white;
+      border-radius: 12px;
+      padding: 20px;
+      z-index: 10000;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    `;
+    
+    document.body.appendChild(loadingDiv);
+    
+    try {
+      // Try with different MIME types for iOS
+      const mimeTypes = [
+        'audio/webm',
+        'audio/mp4',
+        'audio/mpeg',
+        'audio/wav'
+      ];
+      
+      for (const mimeType of mimeTypes) {
+        try {
+          const audioBlob = new Blob([recording.audioData], { type: mimeType });
+          const audioUrl = URL.createObjectURL(audioBlob);
+          
+          this.player.src = audioUrl;
+          this.player.load();
+          
+          // Wait a bit to see if it loads
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          if (this.player.readyState >= 2) { // HAVE_CURRENT_DATA
+            console.log(`Success with MIME type: ${mimeType}`);
+            loadingDiv.remove();
+            return;
+          }
+        } catch (e) {
+          console.log(`Failed with MIME type: ${mimeType}`);
+        }
+      }
+      
+      // If all MIME types fail, show error
+      loadingDiv.remove();
+      this.showAudioError();
+      
+    } catch (error) {
+      loadingDiv.remove();
+      this.showAudioError();
+    }
+  }
+
+  showAudioError() {
+    // Show user-friendly error message
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'audio-error';
+    errorDiv.innerHTML = `
+      <div class="error-content">
+        <div class="error-icon">🔊</div>
+        <h4>Audio Playback Issue</h4>
+        <p>There was a problem loading this recording. This can happen on some mobile devices.</p>
+        <div class="error-actions">
+          <button id="retryAudio" class="primary">Try Again</button>
+          <button id="downloadInstead" class="secondary">Download Instead</button>
+        </div>
+      </div>
+    `;
+    
+    // Add styles
+    errorDiv.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #1e293b;
+      color: white;
+      border-radius: 12px;
+      padding: 20px;
+      max-width: 300px;
+      z-index: 10000;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    `;
+    
+    const style = document.createElement('style');
+    style.textContent = `
+      .error-content {
+        text-align: center;
+      }
+      .error-icon {
+        font-size: 32px;
+        margin-bottom: 12px;
+      }
+      .error-content h4 {
+        margin: 0 0 8px 0;
+        color: #fbbf24;
+      }
+      .error-content p {
+        margin: 0 0 16px 0;
+        font-size: 14px;
+        color: #d1d5db;
+        line-height: 1.4;
+      }
+      .error-actions {
+        display: flex;
+        gap: 8px;
+      }
+      .error-actions button {
+        flex: 1;
+        padding: 8px 12px;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      .error-actions .primary {
+        background: #3b82f6;
+        color: white;
+      }
+      .error-actions .secondary {
+        background: #6b7280;
+        color: white;
+      }
+    `;
+    document.head.appendChild(style);
+    document.body.appendChild(errorDiv);
+    
+    // Add event listeners
+    document.getElementById('retryAudio').addEventListener('click', () => {
+      errorDiv.remove();
+      this.loadAudioForPlayback(this.currentRecording);
+    });
+    
+    document.getElementById('downloadInstead').addEventListener('click', () => {
+      errorDiv.remove();
+      this.downloadRecording();
+    });
+    
+    // Auto-remove after 10 seconds
+    setTimeout(() => {
+      if (errorDiv.parentNode) {
+        errorDiv.remove();
+      }
+    }, 10000);
   }
 
   closePlaybackDialog() {
@@ -416,28 +624,46 @@ class LineRecorderApp {
     this.currentRecording = null;
   }
 
-  setupPlaybackAudioContext() {
-    if (!this.playbackAudioContext) {
-      this.playbackAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+  async setupPlaybackAudioContext() {
+    try {
+      if (!this.playbackAudioContext) {
+        this.playbackAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      
+      // iOS requires AudioContext to be resumed after user interaction
+      if (this.playbackAudioContext.state === 'suspended') {
+        await this.playbackAudioContext.resume();
+      }
+      
+      // Disconnect any existing connections
+      if (this.playbackSource) {
+        this.playbackSource.disconnect();
+      }
+      
+      const source = this.playbackAudioContext.createMediaElementSource(this.player);
+      this.playbackSource = source;
+      
+      this.playbackLeftGain = this.playbackAudioContext.createGain();
+      this.playbackRightGain = this.playbackAudioContext.createGain();
+      
+      const splitter = this.playbackAudioContext.createChannelSplitter(2);
+      const merger = this.playbackAudioContext.createChannelMerger(2);
+      
+      source.connect(splitter);
+      splitter.connect(this.playbackLeftGain, 0);
+      splitter.connect(this.playbackRightGain, 1);
+      this.playbackLeftGain.connect(merger, 0, 0);
+      this.playbackRightGain.connect(merger, 0, 1);
+      merger.connect(this.playbackAudioContext.destination);
+      
+      this.playbackLeftGain.gain.value = 1;
+      this.adjustRightLevel(this.rightLevel.value);
+      
+    } catch (error) {
+      console.error('Error setting up audio context:', error);
+      // Fallback: just use the basic audio element without Web Audio API
+      this.playbackAudioContext = null;
     }
-    
-    const source = this.playbackAudioContext.createMediaElementSource(this.player);
-    
-    this.playbackLeftGain = this.playbackAudioContext.createGain();
-    this.playbackRightGain = this.playbackAudioContext.createGain();
-    
-    const splitter = this.playbackAudioContext.createChannelSplitter(2);
-    const merger = this.playbackAudioContext.createChannelMerger(2);
-    
-    source.connect(splitter);
-    splitter.connect(this.playbackLeftGain, 0);
-    splitter.connect(this.playbackRightGain, 1);
-    this.playbackLeftGain.connect(merger, 0, 0);
-    this.playbackRightGain.connect(merger, 0, 1);
-    merger.connect(this.playbackAudioContext.destination);
-    
-    this.playbackLeftGain.gain.value = 1;
-    this.adjustRightLevel(this.rightLevel.value);
   }
 
   adjustRightLevel(value) {
@@ -449,16 +675,80 @@ class LineRecorderApp {
     localStorage.setItem('rightChannelLevel', value);
   }
 
-  togglePlayback() {
+  async togglePlayback() {
     if (this.player.paused) {
-      this.player.play();
-      this.playBtn.textContent = '⏹️';
-      this.playBtn.title = 'Stop';
+      try {
+        // Set up audio context on first play (iOS requirement)
+        if (!this.playbackAudioContext) {
+          await this.setupPlaybackAudioContext();
+        }
+        
+        // Try to play the audio
+        await this.player.play();
+        this.playBtn.textContent = '⏹️';
+        this.playBtn.title = 'Stop';
+        
+      } catch (error) {
+        console.error('Playback error:', error);
+        
+        // Show user-friendly error
+        this.showPlaybackError(error);
+      }
     } else {
       this.player.pause();
       this.playBtn.textContent = '▶️';
       this.playBtn.title = 'Play';
     }
+  }
+
+  showPlaybackError(error) {
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'playback-error';
+    errorDiv.innerHTML = `
+      <div class="error-content">
+        <div class="error-icon">⚠️</div>
+        <h4>Playback Failed</h4>
+        <p>Unable to play this recording. This is common on iOS devices.</p>
+        <div class="error-actions">
+          <button id="downloadAudio" class="primary">Download Recording</button>
+          <button id="closeError" class="secondary">Close</button>
+        </div>
+      </div>
+    `;
+    
+    // Add styles (reuse from audio error)
+    errorDiv.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #1e293b;
+      color: white;
+      border-radius: 12px;
+      padding: 20px;
+      max-width: 300px;
+      z-index: 10000;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    `;
+    
+    document.body.appendChild(errorDiv);
+    
+    // Add event listeners
+    document.getElementById('downloadAudio').addEventListener('click', () => {
+      errorDiv.remove();
+      this.downloadRecording();
+    });
+    
+    document.getElementById('closeError').addEventListener('click', () => {
+      errorDiv.remove();
+    });
+    
+    // Auto-remove after 8 seconds
+    setTimeout(() => {
+      if (errorDiv.parentNode) {
+        errorDiv.remove();
+      }
+    }, 8000);
   }
 
   seekBackward() {
