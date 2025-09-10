@@ -58,9 +58,15 @@ class LineRecorderApp {
 
   setupEventListeners() {
     // Main interface
-    this.addButton.addEventListener('click', () => this.openRecordingDialog());
+    this.addButton.addEventListener('click', () => this.handleAddButtonClick());
     this.uploadBtn.addEventListener('click', () => this.uploadInput.click());
     this.uploadInput.addEventListener('change', (e) => this.handleFileUpload(e));
+    
+    // Permission status click handler
+    const permissionStatus = document.getElementById('permissionStatus');
+    if (permissionStatus) {
+      permissionStatus.addEventListener('click', () => this.requestPermissions());
+    }
     
     // Recording dialog
     this.closeRecordingBtn.addEventListener('click', () => this.closeRecordingDialog());
@@ -130,6 +136,25 @@ class LineRecorderApp {
     };
   }
 
+  async handleAddButtonClick() {
+    // Check if button is disabled due to permissions
+    if (this.addButton.disabled) {
+      await this.requestPermissions();
+      return;
+    }
+    
+    // Normal recording dialog flow
+    await this.openRecordingDialog();
+  }
+
+  async requestPermissions() {
+    const granted = await this.permissionManager.requestMicrophonePermission();
+    if (granted) {
+      // Permission granted, now open recording dialog
+      await this.openRecordingDialog();
+    }
+  }
+
   updatePermissionUI(hasPermission) {
     const addButton = this.addButton;
     const uploadBtn = this.uploadBtn;
@@ -145,22 +170,22 @@ class LineRecorderApp {
       uploadBtn.title = 'Upload existing recording';
       
       // Update permission status indicator
-      permissionStatus.classList.remove('hidden', 'denied');
+      permissionStatus.classList.remove('hidden', 'denied', 'clickable');
       permissionStatus.classList.add('granted');
       permissionIcon.textContent = '✅';
       permissionText.textContent = 'Microphone access granted';
     } else {
-      addButton.disabled = true;
-      addButton.title = 'Microphone permission required';
-      addButton.style.opacity = '0.5';
+      addButton.disabled = false; // Keep enabled so user can click to request permission
+      addButton.title = 'Tap to request microphone permission';
+      addButton.style.opacity = '1';
       uploadBtn.disabled = false; // Upload doesn't need mic permission
       uploadBtn.title = 'Upload existing recording';
       
       // Update permission status indicator
       permissionStatus.classList.remove('hidden', 'granted');
-      permissionStatus.classList.add('denied');
+      permissionStatus.classList.add('denied', 'clickable');
       permissionIcon.textContent = '🎤';
-      permissionText.textContent = 'Microphone access required';
+      permissionText.textContent = 'Tap to grant microphone access';
     }
   }
 

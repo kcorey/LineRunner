@@ -28,6 +28,18 @@ h1 { margin: 0; font-size: 1.5rem; }
   border-color: #ef4444; 
   color: #fca5a5; 
 }
+.permission-status.clickable { 
+  cursor: pointer; 
+  background: #1e40af; 
+  border-color: #3b82f6; 
+  color: #dbeafe; 
+}
+.permission-status.clickable:hover { 
+  background: #1d4ed8; 
+  border-color: #2563eb; 
+  transform: translateY(-1px); 
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); 
+}
 .permission-status.hidden { 
   display: none; 
 }
