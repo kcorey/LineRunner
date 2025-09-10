@@ -395,7 +395,12 @@ class LineRecorderApp {
     const savedLevel = localStorage.getItem('rightChannelLevel');
     if (savedLevel) {
       this.rightLevel.value = savedLevel;
+    } else {
+      this.rightLevel.value = 100; // Default to full volume
     }
+    
+    // Initialize the volume indicator
+    this.updateVolumeIndicator(this.rightLevel.value);
     
     // Handle audio end
     this.player.onended = () => {
@@ -659,20 +664,113 @@ class LineRecorderApp {
       this.playbackLeftGain.gain.value = 1;
       this.adjustRightLevel(this.rightLevel.value);
       
+      console.log('Web Audio API setup successful');
+      
     } catch (error) {
       console.error('Error setting up audio context:', error);
       // Fallback: just use the basic audio element without Web Audio API
       this.playbackAudioContext = null;
+      this.playbackLeftGain = null;
+      this.playbackRightGain = null;
+      
+      // Show user a subtle indicator that we're using fallback mode
+      this.showFallbackModeIndicator();
+    }
+  }
+
+  showFallbackModeIndicator() {
+    // Add a subtle indicator that we're using fallback volume control
+    const existingIndicator = document.querySelector('.fallback-indicator');
+    if (existingIndicator) {
+      existingIndicator.remove();
+    }
+    
+    const indicator = document.createElement('div');
+    indicator.className = 'fallback-indicator';
+    indicator.innerHTML = `
+      <div class="fallback-content">
+        <span class="fallback-icon">ℹ️</span>
+        <span class="fallback-text">Using simplified volume control</span>
+      </div>
+    `;
+    
+    // Add styles
+    indicator.style.cssText = `
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(59, 130, 246, 0.9);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    `;
+    
+    // Add to the playback dialog
+    const playbackDialog = document.getElementById('playbackDialog');
+    if (playbackDialog) {
+      playbackDialog.appendChild(indicator);
+      
+      // Auto-hide after 3 seconds
+      setTimeout(() => {
+        if (indicator.parentNode) {
+          indicator.remove();
+        }
+      }, 3000);
     }
   }
 
   adjustRightLevel(value) {
     const rightGain = value / 100;
+    
+    // Try Web Audio API first
     if (this.playbackRightGain) {
       this.playbackRightGain.gain.value = rightGain;
+    } else {
+      // Fallback: Use HTML5 audio element volume control
+      // This is a simplified approach for iOS when Web Audio API fails
+      this.adjustAudioElementVolume(value);
     }
+    
     // Save the slider position
     localStorage.setItem('rightChannelLevel', value);
+  }
+
+  adjustAudioElementVolume(value) {
+    // Fallback volume control for when Web Audio API isn't available
+    // This is a simplified approach - we can't do true channel separation
+    // but we can at least provide some volume control
+    
+    if (this.player) {
+      // Convert slider value (0-100) to audio volume (0-1)
+      const volume = value / 100;
+      
+      // For iOS fallback, we'll use the main volume control
+      // This isn't perfect channel separation, but it's better than nothing
+      this.player.volume = Math.max(0.1, volume); // Keep minimum volume so audio is audible
+      
+      // Visual feedback for the user
+      this.updateVolumeIndicator(value);
+    }
+  }
+
+  updateVolumeIndicator(value) {
+    // Add visual feedback to show the volume level
+    const slider = this.rightLevel;
+    if (slider) {
+      // Update the slider's visual state
+      if (value < 20) {
+        slider.style.background = 'linear-gradient(to right, #ef4444 0%, #ef4444 ' + value + '%, #374151 ' + value + '%, #374151 100%)';
+      } else if (value < 50) {
+        slider.style.background = 'linear-gradient(to right, #f59e0b 0%, #f59e0b ' + value + '%, #374151 ' + value + '%, #374151 100%)';
+      } else {
+        slider.style.background = 'linear-gradient(to right, #10b981 0%, #10b981 ' + value + '%, #374151 ' + value + '%, #374151 100%)';
+      }
+    }
   }
 
   async togglePlayback() {
