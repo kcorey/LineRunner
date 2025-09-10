@@ -1,4 +1,4 @@
-# 🎭 Line Partner
+# 🎭 Line Rehearsal
 
 A Progressive Web App (PWA) designed to help actors record and practice their lines for plays. The app features dual-channel recording that allows you to record your lines while hearing other actors' lines, with precise control over the audio mix during playback.
 
