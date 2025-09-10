@@ -810,30 +810,36 @@ class LineRecorderApp {
       console.log('Setting player volume to:', volume);
       
       try {
-        // Try multiple approaches for iOS compatibility
+        // For iOS, we need to be more aggressive about volume control
+        // Try setting volume multiple times with different approaches
         
         // Approach 1: Direct volume control
-        this.player.volume = Math.max(0.1, volume);
+        this.player.volume = volume;
         console.log('Player volume set to:', this.player.volume);
         
-        // Approach 2: If direct volume doesn't work, try muted approach
-        if (this.player.volume === 0 && value > 0) {
-          console.log('Direct volume failed, trying muted approach');
-          this.player.muted = false;
-          this.player.volume = Math.max(0.1, volume);
+        // Approach 2: Force volume change by temporarily muting/unmuting
+        if (this.player.volume !== volume) {
+          console.log('Volume not set correctly, trying mute approach');
+          const wasMuted = this.player.muted;
+          this.player.muted = true;
+          setTimeout(() => {
+            this.player.volume = volume;
+            this.player.muted = wasMuted;
+            console.log('Volume set after mute/unmute:', this.player.volume);
+          }, 10);
         }
         
-        // Approach 3: CSS-based volume simulation (last resort)
-        if (this.player.volume === 0 && value > 0) {
-          console.log('Trying CSS-based volume simulation');
-          this.simulateVolumeWithCSS(value);
+        // Approach 3: Try setting volume on the audio element directly
+        if (this.player.volume !== volume) {
+          console.log('Trying direct audio element volume control');
+          this.player.volume = Math.max(0.01, volume); // iOS might not allow 0 volume
         }
         
         // Visual feedback for the user
         this.updateVolumeIndicator(value);
         
-        // Also try to show a visual indicator that volume changed
-        this.showVolumeChangeFeedback(value);
+        // Show feedback with actual volume achieved
+        this.showVolumeChangeFeedback(`Volume: ${value}% (Actual: ${Math.round(this.player.volume * 100)}%)`);
         
       } catch (error) {
         console.error('Error setting volume:', error);
@@ -922,19 +928,13 @@ class LineRecorderApp {
     // Hide the original slider
     this.rightLevel.style.display = 'none';
     
-    // Create a custom VERTICAL slider container
+    // Create a custom VERTICAL slider container (without duplicate icons)
     const customSlider = document.createElement('div');
     customSlider.className = 'custom-slider';
     customSlider.innerHTML = `
-      <div class="slider-labels-top">
-        <span>🔊</span>
-      </div>
       <div class="slider-track">
         <div class="slider-fill"></div>
         <div class="slider-thumb"></div>
-      </div>
-      <div class="slider-labels-bottom">
-        <span>🔇</span>
       </div>
     `;
     
@@ -957,7 +957,7 @@ class LineRecorderApp {
         background: #374151;
         border-radius: 4px;
         position: relative;
-        margin: 10px 0;
+        margin: 20px 0;
       }
       .slider-fill {
         width: 100%;
@@ -980,14 +980,6 @@ class LineRecorderApp {
         cursor: pointer;
         transform: translateY(50%);
         box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-      }
-      .slider-labels-top, .slider-labels-bottom {
-        font-size: 16px;
-        color: #9ca3af;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 20px;
       }
     `;
     document.head.appendChild(style);
@@ -1151,6 +1143,15 @@ class LineRecorderApp {
         await this.player.play();
         this.playBtn.textContent = '⏹️';
         this.playBtn.title = 'Stop';
+        
+        // Test volume control immediately after play starts
+        setTimeout(() => {
+          console.log('Testing volume control after play...');
+          const testVolume = this.rightLevel.value / 100;
+          this.player.volume = testVolume;
+          console.log('Volume set to:', this.player.volume, 'Expected:', testVolume);
+          this.showVolumeChangeFeedback(`Test: Set to ${Math.round(testVolume * 100)}%, Got ${Math.round(this.player.volume * 100)}%`);
+        }, 500);
         
       } catch (error) {
         console.error('Playback error:', error);
